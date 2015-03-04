@@ -166,4 +166,4 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(facerec src/facerec.cpp)
-target_link_libraries(facerec ${catkin_LIBRARIES})
+target_link_libraries(facerec ${catkin_LIBRARIES} )
