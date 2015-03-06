@@ -14,48 +14,81 @@
 using namespace std;
 using namespace cv;
 
+#define THRESHOLD 4
+
 image_transport::Publisher image_pub;
 Mat prev, current, next;
+int previous;
 
-/** Function Headers */
-void detectAndDisplay( Mat frame );
-
-/** Global variables */
-string face_cascade_name = "haarcascade_frontalface_alt.xml";
-string eyes_cascade_name = "haarcascade_eye_tree_eyeglasses.xml";
-CascadeClassifier face_cascade;
-CascadeClassifier eyes_cascade;
-string window_name = "Capture - Face detection";
-RNG rng(12345);
-
-void drawMap( const Mat& current, Mat& result, int step, double threshold) {
-  Mat blue, green, red;
+void drawMap( const Mat& current, Mat& result, int step, int threshold) {
+  Mat blue(result.size(), result.type()), green(result.size(), result.type()), 
+      red(result.size(), result.type());
   int blueC = 0, greenC = 0, redC = 0;
   for(int y = 0; y < result.rows; y += step)
     for(int x = 0; x < result.cols; x += step)
     {
+      //if(x == 100 && y == 100)
+      //cout << current.at<Vec3b>(y, x) << endl;
       //const Point2f& fxy = current.at<Point2f>(y, x);
       Vec3b pixel = current.at<Vec3b>(y, x);
-      if( pixel[2] > 110 && pixel[1] < 160 && pixel[0] < 50 ){
+      // if( pixel[2] > 110 && pixel[1] < 160 && pixel[0] < 50 ){
+      if( pixel[2] > pixel[1] + pixel[0] - (pixel[1] + pixel[0])/threshold ){
         blue.at<uchar>(Point(x,y)) = 255;
         blueC++;
       }
       else {
         blue.at<uchar>(Point(x,y)) = 0;
       }
+      // if( pixel[2] < 135 && pixel[1] > 100 && pixel[0] < 110 ) {
+      if( pixel[2] + pixel[0] - (pixel[2] + pixel[0])/threshold < pixel[1] ) {
+        green.at<uchar>(Point(x,y)) = 255;
+        greenC++;
+      }
+      else {
+        green.at<uchar>(Point(x,y)) = 0;
+      }
+      // if( pixel[2] < 50 && pixel[1] < 85 && pixel[0] > 120 ){
+      if( pixel[2] + pixel[1] - (pixel[2] + pixel[1])/threshold < pixel[0] ){
+        red.at<uchar>(Point(x,y)) = 255;
+        redC++;
+      }
+      else {
+        red.at<uchar>(Point(x,y)) = 0;
+      }
 
     }
+  //red.at<uchar>(Point(100,100)) = 255;
+  int currentColor = 0;
   if( blueC > greenC ) {
-    if( blueC > redC )
+    if( blueC > redC ) {
       result = blue;
-    else
+      currentColor = 0;
+    }
+    else {
       result = red;
+      currentColor = 1;
+    }
   }
   else {
-    if( greenC > redC )
+    if( greenC > redC ) {
       result = green;
-    else 
+      currentColor = 2;
+    } else {
       result = red;
+      currentColor = 1;
+    }
+  }
+
+  if( currentColor != previous ) {
+    cout << "The prominent color is ";
+    if(currentColor == 0)
+      cout << "blue";
+    else if(currentColor == 1)
+      cout << "red";
+    else
+      cout << "green";
+    cout << endl;
+    previous = currentColor;
   }
 }
 
@@ -73,7 +106,7 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
   current = cv_ptr->image;
   
   if(prev.data) {
-    drawMap(current, cv_ptr->image, 1, 255);
+    drawMap(current, cv_ptr->image, 1, THRESHOLD);
   }
   prev = current;
   image_pub.publish(cv_ptr->toImageMsg());
@@ -83,6 +116,7 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "facerec");
   prev = 0;
+  previous = 0;
   //-- 1. Load the cascades
   // if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
   // if( !eyes_cascade.load( eyes_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
