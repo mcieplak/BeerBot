@@ -109,13 +109,13 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
     drawMap(current, cv_ptr->image, 1, THRESHOLD);
   }
   prev = current;
-  image_pub.publish(cv_ptr->toImageMsg());
+  // image_pub.publish(cv_ptr->toImageMsg());
 
 }
 
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "facerec");
-  prev = 0;
+  //prev = 0;
   previous = 0;
   //-- 1. Load the cascades
   // if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };

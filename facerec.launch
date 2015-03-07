@@ -7,5 +7,6 @@
   </node>
   <node pkg = "rqt_image_view" type = "rqt_image_view" name = "raw_image" />
   <node pkg = "beerbot" type = "facerec" name = "facerec" output = "screen" />
+  <node pkg = "beerbot" type = "template_matching_node" name = "template_matching_node" output = "screen" />
 
 </launch>
