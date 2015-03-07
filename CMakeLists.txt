@@ -167,3 +167,6 @@ include_directories(
 # catkin_add_nosetests(test)
 add_executable(facerec src/facerec.cpp)
 target_link_libraries(facerec ${catkin_LIBRARIES} )
+
+add_executable(template_matching_node src/template_matching_node.cpp)
+target_link_libraries(template_matching_node ${catkin_LIBRARIES})
