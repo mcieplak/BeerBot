@@ -1,0 +1,17 @@
+<launch>
+  <env name = "GSCAM_CONFIG" value = "v4l2src device=/dev/video0 !
+    video/x-raw-rgb,framerate=30/1 ! ffmpegcolorspace" />
+  <node pkg = "gscam" type = "gscam" name = "web_cam">
+    <param name = "camera_name" value = "web_cam" />
+    <remap from = "camera/image_raw" to = "camera/visible/image" />
+  </node>
+   <env name = "GSCAM_CONFIG" value = "v4l2src device=/dev/video1 !
+    video/x-raw-rgb,framerate=30/1 ! ffmpegcolorspace" />
+  <node pkg = "gscam" type = "gscam" name = "web_cam1">
+    <param name = "camera_name1" value = "web_cam1" />
+    <remap from = "camera/image_raw" to = "camera/visible/image1" />
+  </node>
+  <node pkg = "beerbot" type = "facerec" name = "facerec" output = "screen" />
+  <node pkg = "beerbot" type = "template_matching_node" name = "template_matching_node" output = "screen" />
+
+</launch>
