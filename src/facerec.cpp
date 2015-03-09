@@ -18,6 +18,7 @@ using namespace cv;
 
 image_transport::Publisher image_pub;
 Mat prev, current, next;
+ros::Publisher pub;
 int previous;
 
 void drawMap( const Mat& current, Mat& result, int step, int threshold) {
@@ -59,23 +60,28 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
     }
   //red.at<uchar>(Point(100,100)) = 255;
   int currentColor = 0;
+  std_msgs::String msg;
   if( blueC > greenC ) {
     if( blueC > redC ) {
       result = blue;
       currentColor = 0;
+      msg.data = "0";
     }
     else {
       result = red;
       currentColor = 1;
+      msg.data = "1";
     }
   }
   else {
     if( greenC > redC ) {
       result = green;
       currentColor = 2;
+      msg.data = "2";
     } else {
       result = red;
       currentColor = 1;
+      msg.data = "1";
     }
   }
 
@@ -89,6 +95,7 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
       cout << "green";
     cout << endl;
     previous = currentColor;
+    pub.publish(msg);
   }
 }
 
@@ -122,6 +129,7 @@ int main( int argc, char ** argv ) {
   // if( !eyes_cascade.load( eyes_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
   ros::NodeHandle node;
   image_transport::ImageTransport it(node);
+  pub = node.advertise<std_msgs::String>("/chatter", 1000);
   image_transport::Subscriber mySub = it.subscribe("/camera/visible/image", 
                                                     1, faceDetect);
   image_pub = it.advertise("/raw_image", 1);

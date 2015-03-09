@@ -8,6 +8,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/nonfree/features2d.hpp>
+#include <opencv2/nonfree/nonfree.hpp>
+#include <opencv2/core/core.hpp>
+
 #include <iostream>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -18,27 +24,83 @@ using namespace cv;
 image_transport::Publisher image_pub;
 Mat prev, current, next;
 Mat myTemplate;
+Mat img_previous;
+int option;
+string file;
 
+void draw_square( const Mat& current, Mat& result) {
+//-- Step 1: Detect the keypoints using SURF Detector
+  int minHessian = 400;
 
-Mat templateMatch( Mat &img, Mat &mytemplate )
-{
-  Mat result;
+  SurfFeatureDetector detector( minHessian );
 
-  /// Create the result matrix
-  int result_cols =  img.cols - myTemplate.cols + 1;
-  int result_rows = img.rows - myTemplate.rows + 1;
+  std::vector<KeyPoint> keypoints_1, keypoints_2;
 
-  result.create( result_rows, result_cols, CV_32FC1 );
+  detector.detect( current, keypoints_1 );
+  detector.detect( result, keypoints_2 );
 
-  matchTemplate( img, mytemplate, result, CV_TM_SQDIFF_NORMED );
-  normalize( result, result, 0, 1, NORM_MINMAX, -1, Mat() );
+  //-- Step 2: Calculate descriptors (feature vectors)
+  SurfDescriptorExtractor extractor;
 
-  return result;
+  Mat descriptors_1, descriptors_2;
+
+  extractor.compute( current, keypoints_1, descriptors_1 );
+  extractor.compute( result, keypoints_2, descriptors_2 );
+
+  //-- Step 3: Matching descriptor vectors using FLANN matcher
+  FlannBasedMatcher matcher;
+  std::vector< DMatch > matches;
+  matcher.match( descriptors_1, descriptors_2, matches );
+
+  double max_dist = 0; double min_dist = 10;
+
+  //-- Quick calculation of max and min distances between keypoints
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { double dist = matches[i].distance;
+    if( dist < min_dist ) min_dist = dist;
+    if( dist > max_dist ) max_dist = dist;
+  }
+
+  //printf("-- Max dist : %f \n", max_dist );
+  //printf("-- Min dist : %f \n", min_dist );
+
+  //-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
+  //-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
+  //-- small)
+  //-- PS.- radiusMatch can also be used here.
+  std::vector< DMatch > good_matches;
+
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { if( matches[i].distance <= max(2*min_dist, 0.02) )
+    { good_matches.push_back( matches[i]); }
+  }
+
+  //-- Draw only "good" matches
+ cout << good_matches.size() << endl;
+
+  if( good_matches.size() < 50 ) {
+	  Mat img_matches;
+	  drawMatches( current, keypoints_1, result, keypoints_2,
+			  good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
+			  vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+
+	  img_previous = img_matches;
+	  //-- Show detected matches
+	  imshow( "Good Matches", img_matches );
+
+	  for( int i = 0; i < (int)good_matches.size(); i++ )
+	  { printf( "-- Good Match [%d] Keypoint 1: %d  -- Keypoint 2: %d  \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx ); }
+  } else if( img_previous.data ) {
+	  imshow("Good Matches", img_previous);
+  }
+  else
+	  imshow("Good Matches", current );
+  cv::waitKey(30);
+  
 }
 
-void match( const sensor_msgs::Image::ConstPtr & msg ) {
+void template_match( const sensor_msgs::Image::ConstPtr & msg ) {
   cv_bridge::CvImagePtr cv_ptr;
-  Point match;
 
   try
   {
@@ -49,62 +111,82 @@ void match( const sensor_msgs::Image::ConstPtr & msg ) {
     return;
   }
   current = cv_ptr->image;
-  Rect ROI;
-
+  
   if(prev.data) {
-    current = templateMatch( cv_ptr->image, myTemplate);
-   
-    /// Localizing the best match with minMaxLoc
-    double minVal; double maxVal; Point minLoc; Point maxLoc;
-    Point matchLoc;
-
-    minMaxLoc( current, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-
-    /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-   // if( match_method  == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED )
-   //   {
-//   matchLoc = minLoc;
-    //}
-   // else
-     // {
-    matchLoc = maxLoc;
-    //}
-
-    /// Show me what you got
-  //  rectangle( img_display, matchLoc, Point( matchLoc.x + myTemplate.cols , matchLoc.y + myTemplate.rows ),
-   //            Scalar::all(0), 2, 8, 0 );
-    rectangle( cv_ptr->image, matchLoc, Point( matchLoc.x + myTemplate.cols , matchLoc.y + myTemplate.rows ),
-               Scalar::all(0), 2, 8, 0 );
-
-    ROI = cv::Rect( match.x, match.y, myTemplate.cols, myTemplate.rows );
-    cv_ptr->image(ROI);
+    draw_square(myTemplate, cv_ptr->image);
   }
   prev = current;
   image_pub.publish(cv_ptr->toImageMsg());
 
 }
 
+/*
+void match( const sensor_msgs::Image::ConstPtr & msg ) {
+  cv_bridge::CvImagePtr cv_ptr;
+	Point match;
+
+  try
+  {
+    cv_ptr = cv_bridge::toCvCopy(msg, "rgb8");
+  }
+  catch (cv_bridge::Exception & e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    return;
+  }
+  current = cv_ptr->image;
+	Rect ROI;
+  if(prev.data) {
+    current = templateMatch( cv_ptr->image, myTemplate);
+		match = minmax( current );
+		rectangle( cv_ptr->image, match, Point( match.x + myTemplate.cols, 
+								match.y + myTemplate.rows ), CV_RGB(255, 255, 255), 0.5 );
+		ROI = cv::Rect( match.x, match.y, myTemplate.cols, myTemplate.rows );
+		cv_ptr->image(ROI);
+  }
+  prev = current;
+  image_pub.publish(cv_ptr->toImageMsg());
+
+}
+*/
+
+void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
+  if( msg->data.c_str()[0] == '0' ) {
+    option = 0;
+    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/ruination_ipa.jpg";
+  }
+  if( msg->data.c_str()[0] == '1' ) {
+    option = 1;
+    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/water_bottle.png";
+  }
+  if( msg->data.c_str()[0] == '2' ) {
+    option = 2;
+    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/stone_delicious2.jpg";
+  }
+}
+
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "template_matching_node");
   ros::NodeHandle node;
-  string file = "/home/mcieplak/catkin_ws/src/BeerBot/template/water_bottle.png";
+
+  option = 0;
+  ros::Subscriber sub = node.subscribe("/chatter",1000, respondToRequest);
+  file = "/home/mcieplak/catkin_ws/src/BeerBot/template/ruination_ipa.jpg";
   struct stat buf;
   int statResult = stat(file.c_str(),&buf);
   if (statResult || buf.st_ino < 0) {
     cout << "File not found: " << file << endl;
     exit(-2);
   }
-  myTemplate = imread(file, CV_LOAD_IMAGE_COLOR);
+  myTemplate = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
   if( !myTemplate.data)
   {
     cout << "Could not open or find the image" << endl;
     return -1;
   }
 
-  //prev = 0;
   image_transport::ImageTransport it(node);
   image_transport::Subscriber mySub = it.subscribe("/camera/visible/image",
-                                                    1, match);
+                                                    1, template_match);
   image_pub = it.advertise("/raw_image", 1);
   ros::spin();
 
