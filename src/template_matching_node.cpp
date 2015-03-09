@@ -20,20 +20,15 @@ Mat prev, current, next;
 Mat myTemplate;
 
 
-Point minmax( Mat &result )
-{
-  double minVal, maxVal;
-  Point  minLoc, maxLoc, matchLoc;
-
-  minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-  matchLoc = minLoc;
-
-  return matchLoc;
-}
-
 Mat templateMatch( Mat &img, Mat &mytemplate )
 {
   Mat result;
+
+  /// Create the result matrix
+  int result_cols =  img.cols - myTemplate.cols + 1;
+  int result_rows = img.rows - myTemplate.rows + 1;
+
+  result.create( result_rows, result_cols, CV_32FC1 );
 
   matchTemplate( img, mytemplate, result, CV_TM_SQDIFF_NORMED );
   normalize( result, result, 0, 1, NORM_MINMAX, -1, Mat() );
@@ -43,7 +38,7 @@ Mat templateMatch( Mat &img, Mat &mytemplate )
 
 void match( const sensor_msgs::Image::ConstPtr & msg ) {
   cv_bridge::CvImagePtr cv_ptr;
-	Point match;
+  Point match;
 
   try
   {
@@ -54,14 +49,35 @@ void match( const sensor_msgs::Image::ConstPtr & msg ) {
     return;
   }
   current = cv_ptr->image;
-	Rect ROI;
+  Rect ROI;
+
   if(prev.data) {
     current = templateMatch( cv_ptr->image, myTemplate);
-		match = minmax( current );
-		rectangle( cv_ptr->image, match, Point( match.x + myTemplate.cols, 
-								match.y + myTemplate.rows ), CV_RGB(255, 255, 255), 0.5 );
-		ROI = cv::Rect( match.x, match.y, myTemplate.cols, myTemplate.rows );
-		cv_ptr->image(ROI);
+   
+    /// Localizing the best match with minMaxLoc
+    double minVal; double maxVal; Point minLoc; Point maxLoc;
+    Point matchLoc;
+
+    minMaxLoc( current, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
+
+    /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
+   // if( match_method  == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED )
+   //   {
+//   matchLoc = minLoc;
+    //}
+   // else
+     // {
+    matchLoc = maxLoc;
+    //}
+
+    /// Show me what you got
+  //  rectangle( img_display, matchLoc, Point( matchLoc.x + myTemplate.cols , matchLoc.y + myTemplate.rows ),
+   //            Scalar::all(0), 2, 8, 0 );
+    rectangle( cv_ptr->image, matchLoc, Point( matchLoc.x + myTemplate.cols , matchLoc.y + myTemplate.rows ),
+               Scalar::all(0), 2, 8, 0 );
+
+    ROI = cv::Rect( match.x, match.y, myTemplate.cols, myTemplate.rows );
+    cv_ptr->image(ROI);
   }
   prev = current;
   image_pub.publish(cv_ptr->toImageMsg());
@@ -71,22 +87,19 @@ void match( const sensor_msgs::Image::ConstPtr & msg ) {
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "template_matching_node");
   ros::NodeHandle node;
-  string file = "/home/viki/catkin_ws/src/BeerBot/template/ruination_ipa.jpg";
+  string file = "/home/mcieplak/catkin_ws/src/BeerBot/template/water_bottle.png";
   struct stat buf;
   int statResult = stat(file.c_str(),&buf);
-	cout << "Fuck me!" << endl;
   if (statResult || buf.st_ino < 0) {
     cout << "File not found: " << file << endl;
     exit(-2);
   }
-	cout << "Fuck me!" << endl;
   myTemplate = imread(file, CV_LOAD_IMAGE_COLOR);
   if( !myTemplate.data)
   {
     cout << "Could not open or find the image" << endl;
     return -1;
   }
-	cout << "Fuck me!" << endl;
 
   //prev = 0;
   image_transport::ImageTransport it(node);
