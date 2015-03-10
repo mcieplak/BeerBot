@@ -30,7 +30,7 @@ string file;
 
 void draw_square( const Mat& current, Mat& result) {
 //-- Step 1: Detect the keypoints using SURF Detector
-  int minHessian = 400;
+  int minHessian = 1500;
 
   SurfFeatureDetector detector( minHessian );
 
@@ -52,7 +52,7 @@ void draw_square( const Mat& current, Mat& result) {
   std::vector< DMatch > matches;
   matcher.match( descriptors_1, descriptors_2, matches );
 
-  double max_dist = 0; double min_dist = 10;
+  double max_dist = 0; double min_dist = 100;
 
   //-- Quick calculation of max and min distances between keypoints
   for( int i = 0; i < descriptors_1.rows; i++ )
@@ -78,7 +78,7 @@ void draw_square( const Mat& current, Mat& result) {
   //-- Draw only "good" matches
  cout << good_matches.size() << endl;
 
-  if( good_matches.size() < 50 ) {
+  if( good_matches.size() < 20 ) {
 	  Mat img_matches;
 	  drawMatches( current, keypoints_1, result, keypoints_2,
 			  good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
@@ -152,15 +152,23 @@ void match( const sensor_msgs::Image::ConstPtr & msg ) {
 void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
   if( msg->data.c_str()[0] == '0' ) {
     option = 0;
-    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/ruination_ipa.jpg";
+    //file = "/home/jesus/src/beerbot/template/ruination_ipa.jpg";
+    file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
   }
   if( msg->data.c_str()[0] == '1' ) {
     option = 1;
-    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/water_bottle.png";
+    file = "/home/jesus/catkin_ws/src/beerbot/template/water_bottle.png";
+    //file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
   }
   if( msg->data.c_str()[0] == '2' ) {
     option = 2;
-    file = "/home/mcieplak/catkin_ws/src/BeerBot/template/stone_delicious2.jpg";
+   // file = "/home/jesus/catkin_ws/src/beerbot/template/stone_delicious2.jpg";
+  file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
+  }
+  myTemplate = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
+  if( !myTemplate.data)
+  {
+    cout << "Could not open or find the image" << endl;
   }
 }
 
@@ -170,7 +178,7 @@ int main( int argc, char ** argv ) {
 
   option = 0;
   ros::Subscriber sub = node.subscribe("/chatter",1000, respondToRequest);
-  file = "/home/mcieplak/catkin_ws/src/BeerBot/template/ruination_ipa.jpg";
+  file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
   struct stat buf;
   int statResult = stat(file.c_str(),&buf);
   if (statResult || buf.st_ino < 0) {
@@ -185,7 +193,7 @@ int main( int argc, char ** argv ) {
   }
 
   image_transport::ImageTransport it(node);
-  image_transport::Subscriber mySub = it.subscribe("/camera/visible/image",
+  image_transport::Subscriber mySub = it.subscribe("/camera/visible/image1",
                                                     1, template_match);
   image_pub = it.advertise("/raw_image", 1);
   ros::spin();
