@@ -19,8 +19,8 @@
 #include <sys/stat.h>
 
 #define BEER_OPTION_0 "monster"
-#define BEER_OPTION_1 "water"
-#define BEER_OPTION_2 "coke"
+#define BEER_OPTION_1 "coke"
+#define BEER_OPTION_2 "water"
 #define IMAGE_THRESHOLD 3
 #define TIMER_THRESHOLD 0.5
 
@@ -59,6 +59,8 @@ void draw_square( const Mat& current, Mat& result) {
   //-- Step 3: Matching descriptor vectors using FLANN matcher
   FlannBasedMatcher matcher;
   std::vector< DMatch > matches;
+
+  if( descriptors_1.type() != descriptors_2.type() ) return;
   matcher.match( descriptors_1, descriptors_2, matches );
 
   double max_dist = 0; double min_dist = 100;
@@ -156,8 +158,8 @@ void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
     }
     option = 1;
     //file = "/home/jesus/catkin_ws/src/beerbot/template/water_bottle.png";
-    file = "/home/jesus/catkin_ws/src/beerbot/template/water.jpg";
     //file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
+    file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
   }
   if( !strcmp(msg->data.c_str(), "green") ) {
     if(option != 2) {
@@ -166,7 +168,7 @@ void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
     }
     option = 2;
    // file = "/home/jesus/catkin_ws/src/beerbot/template/stone_delicious2.jpg";
-  file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
+    file = "/home/jesus/catkin_ws/src/beerbot/template/water.jpg";
   }
   myTemplate = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
   if( !myTemplate.data)

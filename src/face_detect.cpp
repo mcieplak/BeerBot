@@ -25,12 +25,10 @@ void buttonAction( const std_msgs::String::ConstPtr & msg ) {
   }
 }
 
-void getY (int64 num) {
+void getY (int64 face_radius, int64 y_val, int64 x_val) {
     std_msgs::String msg;
     std::stringstream ss;
-    long int y_coord = (long int) num;
-    // ROS_INFO("y coord is: %d", (int) y_coord);  
-    ss << y_coord << endl;
+    ss << y_val << " " << x_val << " " << face_radius;
     msg.data = ss.str();
     y.publish(msg);
     buttonClicked = false;
@@ -48,12 +46,12 @@ void detectAndDisplay( Mat &frame )
     face_cascade.detectMultiScale( frame_gray, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
 
     if(!faces.empty())
-      getY(faces[0].y + faces[0].height);
-    for( size_t i = 0; i < faces.size(); i++ )
+      getY(faces[0].width*0.5, faces[0].y + faces[0].height, faces[0].x + faces[0].height*0.5);
+    /*for( size_t i = 0; i < faces.size(); i++ )
     {
       Point center( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
       ellipse( frame, center, Size( faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
-    }
+    } */
 }
 
 void imageCallback(const sensor_msgs::ImageConstPtr& source)

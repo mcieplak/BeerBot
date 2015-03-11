@@ -22,23 +22,33 @@ using namespace cv;
 Mat prev, current, next;
 ros::Publisher pub;
 int previous;
-int baseHeight;
+int baseHeight, base_x, face_radius;
 bool toggleImg;
 bool faceDetected;
 
 void faceDetectAction( const std_msgs::String::ConstPtr & msg  ) {
+  stringstream ss;
   faceDetected = true;
-  baseHeight = atoi( msg->data.c_str() );
+  ss << msg->data.c_str();
+  ss >> baseHeight >> base_x >> face_radius;
+  cout << baseHeight << " " << base_x << " " << face_radius << endl;
 }
 
 void drawMap( const Mat& current, Mat& result, int step, int threshold) {
   Mat blue(result.size(), result.type()), green(result.size(), result.type()), 
       red(result.size(), result.type());
   int blueC = 0, greenC = 0, redC = 0;
+  int maxCols = base_x + face_radius * 1.5;
+  int minCols = base_x - face_radius * 1.5;
   if( baseHeight > result.rows )
     baseHeight = 0;
+  if( base_x + face_radius*1.5 > result.cols)
+    maxCols = result.cols;
+  if( base_x - face_radius*1.5 < 0)
+    minCols = 0;
+  cout << baseHeight << " " << minCols << " " << maxCols << endl;
   for(int y = baseHeight; y < result.rows; y += step)
-    for(int x = 0; x < result.cols; x += step)
+    for(int x = minCols; x < maxCols; x += step)
     {
       Vec3b pixel = current.at<Vec3b>(y, x);
       // if( pixel[2] > 110 && pixel[1] < 160 && pixel[0] < 50 ){
@@ -128,6 +138,7 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
           << "\n\n" << endl;
         toggleImg = !toggleImg;
       }
+      cout << "Press button to change user. " << endl;
     }
     cout << "You are now signed in as ";
     if(currentColor == 0)
@@ -135,10 +146,11 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
     else if(currentColor == 1)
       cout << "red";
     else
-      cout << "green";
+      cout << "Jesus";
     cout << "." << endl;
     previous = currentColor;
     pub.publish(msg);
+    cout.flush();
   } else {
     cout << "You are already signed in." << endl;
   }
@@ -181,7 +193,8 @@ int main( int argc, char ** argv ) {
   image_transport::Subscriber mySub = it.subscribe("/camera/visible/image", 
                                                     1, faceDetect);
   ros::Subscriber detect_sub = node.subscribe("/face_detect",1000, faceDetectAction);
-  // image_pub = it.advertise("/raw_image", 1);
+  ros::Rate loop_rate(10);
+  loop_rate.sleep();
   cout << "\033[2J\033[1;1H";
   cout << "\n\n"
     << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t      .ssssssssssss.   \n"
@@ -196,6 +209,8 @@ int main( int argc, char ** argv ) {
     << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
     << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
     << endl;
+  cout << "Press button to sign in user: ";
+  cout.flush();
   ros::spin();
 
   return 0;
