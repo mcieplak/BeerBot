@@ -16,10 +16,18 @@ using namespace cv;
 
 #define THRESHOLD 4
 
-image_transport::Publisher image_pub;
+//image_transport::Publisher image_pub;
 Mat prev, current, next;
 ros::Publisher pub;
 int previous;
+bool toggleImg;
+bool buttonClicked;
+
+void buttonAction( const std_msgs::String::ConstPtr & msg ) {
+  if( msg->data.c_str()[0] == '1' ) {
+    buttonClicked = true;
+  }
+}
 
 void drawMap( const Mat& current, Mat& result, int step, int threshold) {
   Mat blue(result.size(), result.type()), green(result.size(), result.type()), 
@@ -28,9 +36,6 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
   for(int y = 0; y < result.rows; y += step)
     for(int x = 0; x < result.cols; x += step)
     {
-      //if(x == 100 && y == 100)
-      //cout << current.at<Vec3b>(y, x) << endl;
-      //const Point2f& fxy = current.at<Point2f>(y, x);
       Vec3b pixel = current.at<Vec3b>(y, x);
       // if( pixel[2] > 110 && pixel[1] < 160 && pixel[0] < 50 ){
       if( pixel[2] > pixel[1] + pixel[0] - (pixel[1] + pixel[0])/threshold ){
@@ -58,35 +63,67 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
       }
 
     }
-  //red.at<uchar>(Point(100,100)) = 255;
+  cout << "Please wait...." << endl;
   int currentColor = 0;
   std_msgs::String msg;
   if( blueC > greenC ) {
     if( blueC > redC ) {
       result = blue;
       currentColor = 0;
-      msg.data = "0";
+      msg.data = "blue";
     }
     else {
       result = red;
       currentColor = 1;
-      msg.data = "1";
+      msg.data = "red";
     }
   }
   else {
     if( greenC > redC ) {
       result = green;
       currentColor = 2;
-      msg.data = "2";
+      msg.data = "green";
     } else {
       result = red;
       currentColor = 1;
-      msg.data = "1";
+      msg.data = "red";
     }
   }
 
   if( currentColor != previous ) {
-    cout << "The prominent color is ";
+    cout << "\033[2J\033[1;1H";
+    if(toggleImg) {
+      cout << "\n\n"
+        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t      .ssssssssssss.   \n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssssssss@@|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|s@@sss@@sss@@s|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ .ss@@@sss@@ss.| \n"
+        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |...ssss@sss...|\n"
+        << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....sss@.....|\n"
+        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....s@.......|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --.....s@........|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
+        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
+        << endl;
+      toggleImg = !toggleImg;
+    } else {
+      cout << "\n\n"
+        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t        .ssssssssss.   \n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssss@sss@@|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|ss@@sssssss@@s|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ ..s@@ssss@@ss.| \n"
+        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |....ss@@sss...|\n"
+        << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....s@ss.....|\n"
+        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....ss.......|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --......ss.......|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
+        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
+        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
+        << endl;
+      toggleImg = !toggleImg;
+    }
+    cout << "\n\nYou are now signed in as ";
     if(currentColor == 0)
       cout << "blue";
     else if(currentColor == 1)
@@ -96,7 +133,10 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
     cout << endl;
     previous = currentColor;
     pub.publish(msg);
+  } else {
+    cout << "You are already signed in." << endl;
   }
+  buttonClicked = false;
 }
 
 void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
@@ -113,7 +153,11 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
   current = cv_ptr->image;
   
   if(prev.data) {
-    drawMap(current, cv_ptr->image, 1, THRESHOLD);
+    if(buttonClicked) {
+      cout << "Searching for user to sign in. ";
+      cout.flush();
+      drawMap(current, cv_ptr->image, 1, THRESHOLD);
+    }
   }
   prev = current;
   // image_pub.publish(cv_ptr->toImageMsg());
@@ -122,17 +166,30 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
 
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "facerec");
-  //prev = 0;
+
   previous = 0;
-  //-- 1. Load the cascades
-  // if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
-  // if( !eyes_cascade.load( eyes_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
+  buttonClicked = false;
   ros::NodeHandle node;
   image_transport::ImageTransport it(node);
   pub = node.advertise<std_msgs::String>("/chatter", 1000);
   image_transport::Subscriber mySub = it.subscribe("/camera/visible/image", 
                                                     1, faceDetect);
-  image_pub = it.advertise("/raw_image", 1);
+  ros::Subscriber sub = node.subscribe("/button_node",1000, buttonAction);
+  // image_pub = it.advertise("/raw_image", 1);
+  cout << "\033[2J\033[1;1H";
+  cout << "\n\n"
+    << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t      .ssssssssssss.   \n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssssssss@@|\n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|s@@ssssssss@@s|\n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ .ss@@ssss@@ss.| \n"
+    << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |...sss@@sss...|\n"
+    << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....s@ss.....|\n"
+    << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....s@.......|\n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --.....ss........|\n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
+    << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
+    << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
+    << endl;
   ros::spin();
 
   return 0;

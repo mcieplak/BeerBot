@@ -18,14 +18,20 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+#define BEER_OPTION_0 "monster";
+#define BEER_OPTION_1 "water";
+#define BEER_OPTION_2 "coke";
+
 using namespace std;
 using namespace cv;
 
+
 image_transport::Publisher image_pub;
-Mat prev, current, next;
+Mat prev, current;
 Mat myTemplate;
-Mat img_previous;
 int option;
+bool newBeer;
+bool beerFound;
 string file;
 
 void draw_square( const Mat& current, Mat& result) {
@@ -61,13 +67,9 @@ void draw_square( const Mat& current, Mat& result) {
     if( dist > max_dist ) max_dist = dist;
   }
 
-  //printf("-- Max dist : %f \n", max_dist );
-  //printf("-- Min dist : %f \n", min_dist );
-
   //-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
   //-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
   //-- small)
-  //-- PS.- radiusMatch can also be used here.
   std::vector< DMatch > good_matches;
 
   for( int i = 0; i < descriptors_1.rows; i++ )
@@ -76,7 +78,7 @@ void draw_square( const Mat& current, Mat& result) {
   }
 
   //-- Draw only "good" matches
- cout << good_matches.size() << endl;
+ // cout << good_matches.size() << endl;
 
   if( good_matches.size() < 20 ) {
 	  Mat img_matches;
@@ -84,17 +86,26 @@ void draw_square( const Mat& current, Mat& result) {
 			  good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
 			  vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 
-	  img_previous = img_matches;
 	  //-- Show detected matches
 	  imshow( "Good Matches", img_matches );
 
-	  for( int i = 0; i < (int)good_matches.size(); i++ )
-	  { printf( "-- Good Match [%d] Keypoint 1: %d  -- Keypoint 2: %d  \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx ); }
-  } else if( img_previous.data ) {
-	  imshow("Good Matches", img_previous);
-  }
-  else
-	  imshow("Good Matches", current );
+	  //for( int i = 0; i < (int)good_matches.size(); i++ )
+	  //{ printf( "-- Good Match [%d] Keypoint 1: %d  -- Keypoint 2: %d  \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx ); }
+	  if( newBeer ) {
+      cout << "Looks like you need ";
+      if( option == 0 ) {
+        cout << "a " << BEER_OPTION_0;
+      } else if ( option == 1) {
+        cout << "some " << BEER_OPTION_1;
+      } else
+        cout << "a " << BEER_OPTION_2;
+      cout << "." << endl;
+      newBeer = false;
+      beerFound = true;
+    } else if( !beerFound ) {
+      cout << "Searching for your ideal drink!" << endl;
+    }
+  } 
   cv::waitKey(30);
   
 }
@@ -111,7 +122,7 @@ void template_match( const sensor_msgs::Image::ConstPtr & msg ) {
     return;
   }
   current = cv_ptr->image;
-  
+
   if(prev.data) {
     draw_square(myTemplate, cv_ptr->image);
   }
@@ -120,47 +131,30 @@ void template_match( const sensor_msgs::Image::ConstPtr & msg ) {
 
 }
 
-/*
-void match( const sensor_msgs::Image::ConstPtr & msg ) {
-  cv_bridge::CvImagePtr cv_ptr;
-	Point match;
-
-  try
-  {
-    cv_ptr = cv_bridge::toCvCopy(msg, "rgb8");
-  }
-  catch (cv_bridge::Exception & e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    return;
-  }
-  current = cv_ptr->image;
-	Rect ROI;
-  if(prev.data) {
-    current = templateMatch( cv_ptr->image, myTemplate);
-		match = minmax( current );
-		rectangle( cv_ptr->image, match, Point( match.x + myTemplate.cols, 
-								match.y + myTemplate.rows ), CV_RGB(255, 255, 255), 0.5 );
-		ROI = cv::Rect( match.x, match.y, myTemplate.cols, myTemplate.rows );
-		cv_ptr->image(ROI);
-  }
-  prev = current;
-  image_pub.publish(cv_ptr->toImageMsg());
-
-}
-*/
-
 void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
-  if( msg->data.c_str()[0] == '0' ) {
+  if( !strcmp(msg->data.c_str(), "blue") ) {
+    if(option != 0) {
+      newBeer = true;
+      beerFound = false;
+    }
     option = 0;
     //file = "/home/jesus/src/beerbot/template/ruination_ipa.jpg";
     file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
   }
-  if( msg->data.c_str()[0] == '1' ) {
+  if( !strcmp(msg->data.c_str(), "red") ) {
+    if(option != 1) {
+      newBeer = true;
+      beerFound = false;
+    }
     option = 1;
     file = "/home/jesus/catkin_ws/src/beerbot/template/water_bottle.png";
     //file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
   }
-  if( msg->data.c_str()[0] == '2' ) {
+  if( !strcmp(msg->data.c_str(), "green") ) {
+    if(option != 2) {
+      newBeer = true;
+      beerFound = false;
+    }
     option = 2;
    // file = "/home/jesus/catkin_ws/src/beerbot/template/stone_delicious2.jpg";
   file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
