@@ -3,6 +3,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
+#include <std_msgs/Int64.h>
 
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -10,6 +11,7 @@
 
 #include <iostream>
 #include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
 using namespace cv;
@@ -20,20 +22,22 @@ using namespace cv;
 Mat prev, current, next;
 ros::Publisher pub;
 int previous;
+int baseHeight;
 bool toggleImg;
-bool buttonClicked;
+bool faceDetected;
 
-void buttonAction( const std_msgs::String::ConstPtr & msg ) {
-  if( msg->data.c_str()[0] == '1' ) {
-    buttonClicked = true;
-  }
+void faceDetectAction( const std_msgs::String::ConstPtr & msg  ) {
+  faceDetected = true;
+  baseHeight = atoi( msg->data.c_str() );
 }
 
 void drawMap( const Mat& current, Mat& result, int step, int threshold) {
   Mat blue(result.size(), result.type()), green(result.size(), result.type()), 
       red(result.size(), result.type());
   int blueC = 0, greenC = 0, redC = 0;
-  for(int y = 0; y < result.rows; y += step)
+  if( baseHeight > result.rows )
+    baseHeight = 0;
+  for(int y = baseHeight; y < result.rows; y += step)
     for(int x = 0; x < result.cols; x += step)
     {
       Vec3b pixel = current.at<Vec3b>(y, x);
@@ -91,52 +95,54 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
   }
 
   if( currentColor != previous ) {
-    cout << "\033[2J\033[1;1H";
-    if(toggleImg) {
-      cout << "\n\n"
-        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t      .ssssssssssss.   \n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssssssss@@|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|s@@sss@@sss@@s|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ .ss@@@sss@@ss.| \n"
-        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |...ssss@sss...|\n"
-        << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....sss@.....|\n"
-        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....s@.......|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --.....s@........|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
-        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
-        << endl;
-      toggleImg = !toggleImg;
-    } else {
-      cout << "\n\n"
-        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t        .ssssssssss.   \n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssss@sss@@|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|ss@@sssssss@@s|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ ..s@@ssss@@ss.| \n"
-        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |....ss@@sss...|\n"
-        << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....s@ss.....|\n"
-        << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....ss.......|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --......ss.......|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
-        << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
-        << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
-        << endl;
-      toggleImg = !toggleImg;
+    if(previous < 3 ) {
+      cout << "\033[2J\033[1;1H";
+      if(toggleImg) {
+        cout << "\n\n"
+          << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t      .ssssssssssss.   \n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssssssss@@|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|s@@sss@@sss@@s|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ .ss@@@sss@@ss.| \n"
+          << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |...ssss@sss...|\n"
+          << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....sss@.....|\n"
+          << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....s@.......|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --.....s@........|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
+          << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
+          << "\n\n " << endl;
+        toggleImg = !toggleImg;
+      } else {
+        cout << "\n\n"
+          << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRRRR \t        .ssssssssss.   \n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |@@ssssss@sss@@|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t  ___|ss@@sssssss@@s|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t / __ ..s@@ssss@@ss.| \n"
+          << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| /  |....ss@@sss...|\n"
+          << "\tBBBBBBB     \tEEEEEEEEEE \tEEEEEEEEEE \tRRRRRRR   \t| |  |.....s@ss.....|\n"
+          << "\tBB     BB   \tEE         \tEE         \tRR     RR \t| \\  |.....ss.......|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t \\ --......ss.......|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t  \\__...............|\n"
+          << "\tBB       BB \tEE         \tEE         \tRR      RR\t     |..............|\n"
+          << "\tBBBBBBBBBB  \tEEEEEEEEEE \tEEEEEEEEEE \tRR      RR\t     |..............|\n"
+          << "\n\n" << endl;
+        toggleImg = !toggleImg;
+      }
     }
-    cout << "\n\nYou are now signed in as ";
+    cout << "You are now signed in as ";
     if(currentColor == 0)
       cout << "blue";
     else if(currentColor == 1)
       cout << "red";
     else
       cout << "green";
-    cout << endl;
+    cout << "." << endl;
     previous = currentColor;
     pub.publish(msg);
   } else {
     cout << "You are already signed in." << endl;
   }
-  buttonClicked = false;
+  faceDetected = false;
 }
 
 void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
@@ -153,8 +159,8 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
   current = cv_ptr->image;
   
   if(prev.data) {
-    if(buttonClicked) {
-      cout << "Searching for user to sign in. ";
+    if(faceDetected) {
+      cout << "Retrieving user's information. ";
       cout.flush();
       drawMap(current, cv_ptr->image, 1, THRESHOLD);
     }
@@ -166,15 +172,15 @@ void faceDetect( const sensor_msgs::Image::ConstPtr & msg ) {
 
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "facerec");
-
-  previous = 0;
-  buttonClicked = false;
+  baseHeight = 0;
+  previous = 5;
+  faceDetected = false;
   ros::NodeHandle node;
   image_transport::ImageTransport it(node);
   pub = node.advertise<std_msgs::String>("/chatter", 1000);
   image_transport::Subscriber mySub = it.subscribe("/camera/visible/image", 
                                                     1, faceDetect);
-  ros::Subscriber sub = node.subscribe("/button_node",1000, buttonAction);
+  ros::Subscriber detect_sub = node.subscribe("/face_detect",1000, faceDetectAction);
   // image_pub = it.advertise("/raw_image", 1);
   cout << "\033[2J\033[1;1H";
   cout << "\n\n"

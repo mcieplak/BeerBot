@@ -18,9 +18,11 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#define BEER_OPTION_0 "monster";
-#define BEER_OPTION_1 "water";
-#define BEER_OPTION_2 "coke";
+#define BEER_OPTION_0 "monster"
+#define BEER_OPTION_1 "water"
+#define BEER_OPTION_2 "coke"
+#define IMAGE_THRESHOLD 3
+#define TIMER_THRESHOLD 0.5
 
 using namespace std;
 using namespace cv;
@@ -30,9 +32,10 @@ image_transport::Publisher image_pub;
 Mat prev, current;
 Mat myTemplate;
 int option;
-bool newBeer;
 bool beerFound;
 string file;
+int templates_matched;
+ros::Time begin;
 
 void draw_square( const Mat& current, Mat& result) {
 //-- Step 1: Detect the keypoints using SURF Detector
@@ -91,19 +94,22 @@ void draw_square( const Mat& current, Mat& result) {
 
 	  //for( int i = 0; i < (int)good_matches.size(); i++ )
 	  //{ printf( "-- Good Match [%d] Keypoint 1: %d  -- Keypoint 2: %d  \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx ); }
-	  if( newBeer ) {
-      cout << "Looks like you need ";
-      if( option == 0 ) {
-        cout << "a " << BEER_OPTION_0;
-      } else if ( option == 1) {
-        cout << "some " << BEER_OPTION_1;
-      } else
-        cout << "a " << BEER_OPTION_2;
-      cout << "." << endl;
-      newBeer = false;
+    if(templates_matched > IMAGE_THRESHOLD)
       beerFound = true;
-    } else if( !beerFound ) {
-      cout << "Searching for your ideal drink!" << endl;
+    ros::Time newTime = ros::Time::now();
+    if( newTime.toSec() - begin.toSec()  < TIMER_THRESHOLD )
+      templates_matched++;
+    begin = newTime;
+
+	  if( beerFound ) {
+      cout << "Looks like we have ";
+      if( option == 0 ) {
+        cout << BEER_OPTION_0;
+      } else if ( option == 1) {
+        cout << BEER_OPTION_1;
+      } else
+        cout << BEER_OPTION_2;
+      cout << " available." << endl;
     }
   } 
   cv::waitKey(30);
@@ -113,6 +119,8 @@ void draw_square( const Mat& current, Mat& result) {
 void template_match( const sensor_msgs::Image::ConstPtr & msg ) {
   cv_bridge::CvImagePtr cv_ptr;
 
+  if( beerFound == true )
+    return;
   try
   {
     cv_ptr = cv_bridge::toCvCopy(msg, "rgb8");
@@ -134,8 +142,8 @@ void template_match( const sensor_msgs::Image::ConstPtr & msg ) {
 void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
   if( !strcmp(msg->data.c_str(), "blue") ) {
     if(option != 0) {
-      newBeer = true;
       beerFound = false;
+      templates_matched = 0;
     }
     option = 0;
     //file = "/home/jesus/src/beerbot/template/ruination_ipa.jpg";
@@ -143,17 +151,18 @@ void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
   }
   if( !strcmp(msg->data.c_str(), "red") ) {
     if(option != 1) {
-      newBeer = true;
       beerFound = false;
+      templates_matched = 0;
     }
     option = 1;
-    file = "/home/jesus/catkin_ws/src/beerbot/template/water_bottle.png";
+    //file = "/home/jesus/catkin_ws/src/beerbot/template/water_bottle.png";
+    file = "/home/jesus/catkin_ws/src/beerbot/template/water.jpg";
     //file = "/home/jesus/catkin_ws/src/beerbot/template/monster.jpg";
   }
   if( !strcmp(msg->data.c_str(), "green") ) {
     if(option != 2) {
-      newBeer = true;
       beerFound = false;
+      templates_matched = 0;
     }
     option = 2;
    // file = "/home/jesus/catkin_ws/src/beerbot/template/stone_delicious2.jpg";
@@ -164,13 +173,18 @@ void respondToRequest( const std_msgs::String::ConstPtr & msg ) {
   {
     cout << "Could not open or find the image" << endl;
   }
+  ros::Time time = ros::Time::now();
+  cout << "Searching for your drink preference. Please wait..." << endl;
 }
 
 int main( int argc, char ** argv ) {
   ros::init(argc, argv, "template_matching_node");
   ros::NodeHandle node;
 
+  templates_matched = 0;
   option = 0;
+  beerFound = true;
+  begin = ros::Time::now();
   ros::Subscriber sub = node.subscribe("/chatter",1000, respondToRequest);
   file = "/home/jesus/catkin_ws/src/beerbot/template/coke.jpg";
   struct stat buf;
