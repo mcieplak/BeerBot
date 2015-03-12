@@ -31,7 +31,6 @@ void faceDetectAction( const std_msgs::String::ConstPtr & msg  ) {
   faceDetected = true;
   ss << msg->data.c_str();
   ss >> baseHeight >> base_x >> face_radius;
-  cout << baseHeight << " " << base_x << " " << face_radius << endl;
 }
 
 void drawMap( const Mat& current, Mat& result, int step, int threshold) {
@@ -46,7 +45,6 @@ void drawMap( const Mat& current, Mat& result, int step, int threshold) {
     maxCols = result.cols;
   if( base_x - face_radius*1.5 < 0)
     minCols = 0;
-  cout << baseHeight << " " << minCols << " " << maxCols << endl;
   for(int y = baseHeight; y < result.rows; y += step)
     for(int x = minCols; x < maxCols; x += step)
     {
